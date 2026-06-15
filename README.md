@@ -29,25 +29,22 @@ DCF/
 
 ### 1. Environment variables
 
-Copy the example env file and fill in your Supabase credentials:
+Copy the example env file at the project root and fill in your Supabase credentials:
 
 ```bash
 cp .env.example .env
 ```
 
-Also copy frontend env values (or symlink):
-
-```bash
-cp .env.example frontend/.env
-```
+Both the frontend and backend read from this single root `.env` file.
 
 Set these from your Supabase project settings (API):
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `DATABASE_URL` / `DIRECT_URL` (from Supabase → Connect)
 - `VITE_SUPABASE_URL` (same as `SUPABASE_URL`)
-- `VITE_SUPABASE_ANON_KEY` (same as `SUPABASE_ANON_KEY`)
+- `VITE_SUPABASE_ANON_KEY` (client-side key)
 
 ### 2. Database schema
 
@@ -98,3 +95,4 @@ App: http://localhost:5173
 - The Vite dev server proxies `/api` requests to the FastAPI backend.
 - The backend uses the Supabase service role key for server-side database access.
 - The frontend uses the Supabase anon key via `@supabase/supabase-js` for client-side access.
+- All environment variables live in the root `.env` only.
