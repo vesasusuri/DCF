@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+.env
+.env.development
+.env.production
+.env.local
+.git
+.idea
+dist
+build
+pnpm-lock.yaml
+
