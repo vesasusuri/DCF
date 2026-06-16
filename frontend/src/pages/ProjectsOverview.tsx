@@ -74,83 +74,97 @@ export function ProjectsOverview() {
         { label: 'Alle Projekte', current: true },
       ]}
     >
-      <div className="page-eyebrow">S01 · PROJEKTE</div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Alle Bewertungsprojekte</h1>
-          <div className="tabs" style={{ marginTop: 16 }}>
+      <div className="projects-page">
+        <div className="projects-header-bar">
+          <div className="projects-header-title">
+            <div className="page-eyebrow projects-eyebrow">S01 · PROJEKTE</div>
+            <h1 className="page-title projects-title">Alle Bewertungsprojekte</h1>
+          </div>
+
+          <div className="projects-tabs">
             {tabs.map((tab) => (
               <button
                 key={tab}
-                className={`tab${activeTab === tab ? ' active' : ''}`}
+                type="button"
+                className={`projects-tab${activeTab === tab ? ' active' : ''}`}
                 onClick={() => setActiveTab(tab)}
               >
                 {tab}
               </button>
             ))}
           </div>
-        </div>
-        <div className="page-actions">
-          <button className="btn btn-secondary">Importieren</button>
-          <button className="btn btn-primary">+ Neues Projekt</button>
-        </div>
-      </div>
 
-      <div className="kpi-bar">
-        <div className="kpi-item">
-          <div className="kpi-label">Offene Projekte</div>
-          <div className="kpi-value">12</div>
-          <div className="kpi-sub">über 4 Teams</div>
-        </div>
-        <div className="kpi-item">
-          <div className="kpi-label">Assets im Scope</div>
-          <div className="kpi-value">318</div>
-          <div className="kpi-sub">1.940 Leases</div>
-        </div>
-        <div className="kpi-item">
-          <div className="kpi-label">Wartet auf Review</div>
-          <div className="kpi-value">5</div>
-          <div className="kpi-sub">
-            Datenqualitäts-Flags <span className="kpi-action">Aktion</span>
+          <div className="page-actions">
+            <button type="button" className="btn btn-secondary">
+              Importieren
+            </button>
+            <button type="button" className="btn btn-primary">
+              + Neues Projekt
+            </button>
           </div>
         </div>
-        <div className="kpi-item">
-          <div className="kpi-label">Berichte / Monat</div>
-          <div className="kpi-value">9</div>
-          <div className="kpi-sub">PDF / Excel</div>
-        </div>
-      </div>
 
-      <div className="project-grid">
-        {projects.map((project) => (
-          <div key={project.id} className="project-card">
-            <div className="project-card-header">
-              <div>
-                <div className="project-card-title">{project.title}</div>
-                <div className="project-card-sub">{project.subtitle}</div>
-              </div>
-              <span className={`badge ${statusBadgeClass[project.status]}`}>
-                {project.status}
-              </span>
-            </div>
-            <div className="project-card-status">{project.statusDetail}</div>
-            <div className="project-card-footer">
-              <span className="project-card-team">{project.team}</span>
-              <div className="project-card-actions">
-                <button className="btn-link-primary">Öffnen</button>
-                <button className="btn-link">DCF starten →</button>
-              </div>
+        <div className="kpi-bar">
+          <div className="kpi-item">
+            <div className="kpi-label">Offene Projekte</div>
+            <div className="kpi-value">12</div>
+            <div className="kpi-sub">über 4 Teams</div>
+          </div>
+          <div className="kpi-item">
+            <div className="kpi-label">Assets im Scope</div>
+            <div className="kpi-value">318</div>
+            <div className="kpi-sub">1.940 Leases</div>
+          </div>
+          <div className="kpi-item">
+            <div className="kpi-label">Wartet auf Review</div>
+            <div className="kpi-value">5</div>
+            <div className="kpi-sub-row">
+              <span className="kpi-sub">Datenqualitäts-Flags</span>
+              <span className="kpi-action">Aktion</span>
             </div>
           </div>
-        ))}
-
-        <div className="project-card project-card-new">
-          <div className="project-card-new-icon">
-            <Plus size={22} />
+          <div className="kpi-item">
+            <div className="kpi-label">Berichte / Monat</div>
+            <div className="kpi-value">9</div>
+            <div className="kpi-sub">PDF / Excel</div>
           </div>
-          <div className="project-card-new-title">Bewertungsprojekt anlegen</div>
-          <div className="project-card-new-sub">
-            Client · Währung · Bewertungsstichtag · Reporting-Sprache
+        </div>
+
+        <div className="project-grid">
+          {projects.map((project) => (
+            <div key={project.id} className="project-card">
+              <div className="project-card-header">
+                <div>
+                  <div className="project-card-title">{project.title}</div>
+                  <div className="project-card-sub">{project.subtitle}</div>
+                </div>
+                <span className={`badge ${statusBadgeClass[project.status]}`}>
+                  {project.status}
+                </span>
+              </div>
+              <div className="project-card-status">{project.statusDetail}</div>
+              <div className="project-card-footer">
+                <span className="project-card-team">{project.team}</span>
+                <div className="project-card-actions">
+                  <button type="button" className="btn-link-primary">
+                    Öffnen
+                  </button>
+                  <button type="button" className="btn-link">
+                    DCF starten →
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <div className="project-card project-card-new">
+            <div className="project-card-new-icon">
+              <Plus size={22} />
+            </div>
+            <div className="project-card-new-title">Bewertungsprojekt anlegen</div>
+            <div className="project-card-new-sub">
+              Client · Währung · Bewertungsstichtag · Reporting-Sprache
+            </div>
           </div>
         </div>
       </div>

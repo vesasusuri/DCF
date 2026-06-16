@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Upload, Check, FileSpreadsheet, FileText } from 'lucide-react'
+import { ArrowDownToLine } from 'lucide-react'
 import { PageWrapper } from '../components/layout/MainLayout'
 
 const filterTabs = ['Rent rolls', 'Leases', 'Fact sheets', 'Capex', 'Market']
@@ -21,7 +20,7 @@ const classifiedFiles = [
     property: 'Portfolio-weit',
     confidence: '0.99',
     status: 'OK' as const,
-    icon: 'excel' as const,
+    fileType: 'XLS' as const,
   },
   {
     name: 'Lease_DC-Hannover_18.pdf',
@@ -29,7 +28,7 @@ const classifiedFiles = [
     property: 'DC Hannover-Süd',
     confidence: '0.97',
     status: 'OK' as const,
-    icon: 'pdf' as const,
+    fileType: 'PDF' as const,
   },
   {
     name: 'Factsheet_Koeln-Nord.pdf',
@@ -37,7 +36,7 @@ const classifiedFiles = [
     property: 'Logistikpark Köln-Nord',
     confidence: '0.95',
     status: 'OK' as const,
-    icon: 'pdf' as const,
+    fileType: 'PDF' as const,
   },
   {
     name: 'scan_2026_0412.pdf',
@@ -45,7 +44,7 @@ const classifiedFiles = [
     property: 'kein Treffer',
     confidence: '0.28',
     status: 'Fehlt' as const,
-    icon: 'pdf' as const,
+    fileType: 'PDF' as const,
     error: true,
   },
   {
@@ -54,7 +53,7 @@ const classifiedFiles = [
     property: 'Urban Logistics Düsseldorf',
     confidence: '0.64',
     status: 'Review' as const,
-    icon: 'excel' as const,
+    fileType: 'XLS' as const,
     warning: true,
   },
   {
@@ -63,7 +62,7 @@ const classifiedFiles = [
     property: 'Light Industrial Essen',
     confidence: '0.92',
     status: 'OK' as const,
-    icon: 'pdf' as const,
+    fileType: 'PDF' as const,
   },
 ]
 
@@ -85,10 +84,12 @@ export function UploadHub() {
         { label: 'Upload', current: true },
       ]}
     >
-      <div className="page-eyebrow">S02 · UPLOAD</div>
-      <div className="page-header">
-        <h1 className="page-title">Upload-Hub</h1>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div className="upload-page">
+        <div className="upload-header">
+          <div>
+            <div className="page-eyebrow upload-eyebrow">S02 · UPLOAD</div>
+            <h1 className="page-title upload-title">Upload-Hub</h1>
+          </div>
           <div className="pill-tabs">
             {filterTabs.map((tab) => (
               <button
@@ -100,67 +101,62 @@ export function UploadHub() {
               </button>
             ))}
           </div>
-          <Link to="/upload/mapping" className="btn btn-primary btn-sm">
-            Daten mappen →
-          </Link>
         </div>
-      </div>
 
-      <div className="upload-layout">
-        <div>
-          <div className="dropzone">
-            <div className="dropzone-icon">
-              <Upload size={36} strokeWidth={1.5} />
+        <div className="upload-layout">
+          <div>
+            <div className="dropzone">
+              <div className="dropzone-icon-wrap">
+                <ArrowDownToLine size={24} strokeWidth={1.75} />
+              </div>
+              <div className="dropzone-title">Portfolio-Dateien hierher ziehen</div>
+              <div className="dropzone-sub">
+                Excel-Rent-Rolls · Lease-PDFs · Property-Factsheets ·
+                <br />
+                Capex-Pläne · Energieausweise
+              </div>
+              <button className="btn btn-primary">Dateien auswählen</button>
             </div>
-            <div className="dropzone-title">Portfolio-Dateien hierher ziehen</div>
-            <div className="dropzone-sub">
-              Excel (.xlsx), PDF, CSV · max. 50 MB pro Datei
-            </div>
-            <button className="btn btn-primary" style={{ marginTop: 8 }}>
-              Dateien auswählen
-            </button>
-          </div>
 
-          <div className="upload-progress-list">
-            <div className="upload-progress-item">
-              <div className="upload-progress-header">
+            <div className="upload-progress-list">
+              <div className="upload-progress-row">
                 <span className="upload-progress-name">RentRoll_NRW_2026.xlsx</span>
-                <span className="upload-progress-pct">100%</span>
+                <div className="progress-bar">
+                  <div className="progress-bar-fill green" style={{ width: '100%' }} />
+                </div>
+                <span className="upload-progress-pct complete">100%</span>
               </div>
-              <div className="progress-bar">
-                <div className="progress-bar-fill green" style={{ width: '100%' }} />
-              </div>
-            </div>
-            <div className="upload-progress-item">
-              <div className="upload-progress-header">
+              <div className="upload-progress-row">
                 <span className="upload-progress-name">Lease-Paket (42 PDFs)</span>
-                <span className="upload-progress-pct">72%</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-bar-fill blue" style={{ width: '72%' }} />
+                <div className="progress-bar">
+                  <div className="progress-bar-fill blue" style={{ width: '72%' }} />
+                </div>
+                <span className="upload-progress-pct in-progress">72%</span>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title-row">
-                <div className="card-accent-bar" />
-                <div className="card-title">Upload-Checkliste</div>
+          <div className="card upload-checklist-card">
+            <div className="upload-checklist-header">
+              <div className="upload-checklist-title-block">
+                <div className="card-title-row">
+                  <div className="card-accent-bar" />
+                  <div className="card-title">Upload-Checkliste</div>
+                </div>
+                <div className="card-subtitle">Pflicht-Dokumente</div>
               </div>
+              <span className="checklist-fraction">
+                {doneCount} / {checklistItems.length}
+              </span>
             </div>
-            <span className="checklist-fraction">
-              {doneCount} / {checklistItems.length}
-            </span>
-          </div>
-          <div className="card-body">
             <ul className="checklist">
               {checklistItems.map((item) => (
-                <li key={item.label} className="checklist-item">
+                <li
+                  key={item.label}
+                  className={`checklist-item${item.done ? ' done' : ' pending'}`}
+                >
                   {item.done ? (
-                    <Check size={16} className="checklist-icon-done" />
+                    <span className="checklist-icon-done">✓</span>
                   ) : (
                     <span className="checklist-icon-pending" />
                   )}
@@ -170,50 +166,51 @@ export function UploadHub() {
             </ul>
           </div>
         </div>
-      </div>
 
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title-row">
-            <div className="card-accent-bar" />
-            <div className="card-title">Klassifizierte Dateien</div>
+        <div className="card upload-files-card">
+          <div className="upload-checklist-title-block">
+            <div className="card-title-row">
+              <div className="card-accent-bar" />
+              <div className="card-title">Klassifizierte Dateien</div>
+            </div>
+            <div className="card-subtitle">
+              Auto-Klassifizierung · 1 ohne Treffer · 1 niedrige Konfidenz
+            </div>
           </div>
-        </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Datei</th>
-              <th>Erkannter Typ</th>
-              <th>Property-Match</th>
-              <th>Konf.</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {classifiedFiles.map((file) => (
-              <tr key={file.name}>
-                <td>
-                  <div className="file-cell">
-                    {file.icon === 'excel' ? (
-                      <FileSpreadsheet size={18} className="file-icon" color="#16a34a" />
-                    ) : (
-                      <FileText size={18} className="file-icon" color="#c32b1e" />
-                    )}
-                    {file.name}
-                  </div>
-                </td>
-                <td className={file.error ? 'text-error' : undefined}>{file.type}</td>
-                <td className={file.error ? 'text-error' : undefined}>{file.property}</td>
-                <td className={file.warning || file.error ? (file.error ? 'text-error' : 'text-warning') : undefined}>
-                  {file.confidence}
-                </td>
-                <td>
-                  <span className={`badge ${statusBadge[file.status]}`}>{file.status}</span>
-                </td>
+          <table className="upload-files-table">
+            <thead>
+              <tr>
+                <th>Datei</th>
+                <th>Erkannter Typ</th>
+                <th>Property-Match</th>
+                <th className="col-confidence">Konf.</th>
+                <th className="col-status">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {classifiedFiles.map((file) => (
+                <tr key={file.name}>
+                  <td>
+                    <div className="file-cell">
+                      <span className="file-type-badge">{file.fileType}</span>
+                      {file.name}
+                    </div>
+                  </td>
+                  <td className={file.error ? 'text-error' : undefined}>{file.type}</td>
+                  <td className={file.error ? 'text-error' : undefined}>{file.property}</td>
+                  <td
+                    className={`col-confidence confidence-mono${file.warning || file.error ? (file.error ? ' text-error' : ' text-warning') : ''}`}
+                  >
+                    {file.confidence}
+                  </td>
+                  <td className="col-status">
+                    <span className={`badge ${statusBadge[file.status]}`}>{file.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </PageWrapper>
   )
