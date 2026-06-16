@@ -59,6 +59,7 @@ RUN apk add --no-cache curl \
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx-main.conf /etc/nginx/nginx.conf
 
 EXPOSE 8080
 
