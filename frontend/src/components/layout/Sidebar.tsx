@@ -1,5 +1,4 @@
 import { NavLink } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
 
 const navItems = [
   { label: 'Projekte', code: 'S01', path: '/projects' },
@@ -10,16 +9,9 @@ const navItems = [
   { label: 'Ergebnisse', code: 'S07', path: '/results' },
   { label: 'Dashboards', code: 'S08', path: '/dashboards' },
   { label: 'Berichte', code: 'S18', path: '/reports' },
-  { label: 'Admin', code: 'S11', path: '/admin', adminOnly: true },
 ]
 
 export function Sidebar() {
-  const { user } = useAuth()
-
-  const visibleItems = navItems.filter(
-    (item) => !item.adminOnly || user?.role === 'admin',
-  )
-
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -31,7 +23,7 @@ export function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {visibleItems.map((item) => (
+        {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
