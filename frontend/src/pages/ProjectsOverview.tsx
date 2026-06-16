@@ -20,39 +20,39 @@ const projects: Project[] = [
     subtitle: 'Colliers Germany · 47 Assets',
     status: 'Prüfung',
     statusDetail: 'Lauf #14 · vor 2 Std.',
-    team: 'Team Nord',
+    team: 'Team Rhein-Ruhr',
   },
   {
     id: '2',
-    title: 'Urban Logistics Düsseldorf',
-    subtitle: 'Colliers Germany · 12 Assets',
+    title: 'Light Industrial Süd',
+    subtitle: 'Aurelis Real Estate · 31 Assets',
     status: 'Fertig',
-    statusDetail: 'Lauf #8 · vor 3 Tagen',
-    team: 'Team West',
+    statusDetail: 'Lauf #08 · gestern',
+    team: 'Team München',
   },
   {
     id: '3',
-    title: 'Logistikpark Köln-Nord',
-    subtitle: 'Colliers Germany · 23 Assets',
-    status: 'Entwurf',
-    statusDetail: 'Noch kein Lauf',
-    team: 'Team Köln',
-  },
-  {
-    id: '4',
-    title: 'DC Hannover-Süd',
-    subtitle: 'Colliers Germany · 8 Assets',
-    status: 'Prüfung',
-    statusDetail: 'Lauf #3 · vor 1 Std.',
+    title: 'Logistics Core DE',
+    subtitle: 'Garbe Industrial · 62 Assets',
+    status: 'Fertig',
+    statusDetail: 'Lauf #21 · vor 3 Tagen',
     team: 'Team Nord',
   },
   {
+    id: '4',
+    title: 'Urban Logistics Mix',
+    subtitle: 'Deka Immobilien · 24 Assets',
+    status: 'Entwurf',
+    statusDetail: 'Entwurf · kein Lauf',
+    team: 'Team Frankfurt',
+  },
+  {
     id: '5',
-    title: 'Light Industrial Essen',
-    subtitle: 'Colliers Germany · 15 Assets',
-    status: 'Fertig',
-    statusDetail: 'Lauf #6 · vor 1 Woche',
-    team: 'Team West',
+    title: 'Unternehmensimmobilien',
+    subtitle: 'BEOS AG · 53 Assets',
+    status: 'Prüfung',
+    statusDetail: 'Lauf #05 · letzte Woche',
+    team: 'Team Berlin',
   },
 ]
 
@@ -110,8 +110,9 @@ export function ProjectsOverview() {
         <div className="kpi-item">
           <div className="kpi-label">Wartet auf Review</div>
           <div className="kpi-value">5</div>
-          <div className="kpi-sub">Datenqualitäts-Flags</div>
-          <span className="kpi-action">Aktion</span>
+          <div className="kpi-sub">
+            Datenqualitäts-Flags <span className="kpi-action">Aktion</span>
+          </div>
         </div>
         <div className="kpi-item">
           <div className="kpi-label">Berichte / Monat</div>
@@ -136,7 +137,7 @@ export function ProjectsOverview() {
             <div className="project-card-footer">
               <span className="project-card-team">{project.team}</span>
               <div className="project-card-actions">
-                <button className="btn-link">Öffnen</button>
+                <button className="btn-link-primary">Öffnen</button>
                 <button className="btn-link">DCF starten →</button>
               </div>
             </div>
@@ -145,7 +146,7 @@ export function ProjectsOverview() {
 
         <div className="project-card project-card-new">
           <div className="project-card-new-icon">
-            <Plus size={24} />
+            <Plus size={22} />
           </div>
           <div className="project-card-new-title">Bewertungsprojekt anlegen</div>
           <div className="project-card-new-sub">

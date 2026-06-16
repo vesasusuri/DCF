@@ -9,6 +9,7 @@ export type LayoutContext = {
 export function MainLayout() {
   return (
     <div className="app-shell">
+      <div className="app-brand-gradient" aria-hidden="true" />
       <Sidebar />
       <div className="main-area">
         <Outlet />

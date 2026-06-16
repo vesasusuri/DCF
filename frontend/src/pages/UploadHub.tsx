@@ -197,7 +197,7 @@ export function UploadHub() {
                     {file.icon === 'excel' ? (
                       <FileSpreadsheet size={18} className="file-icon" color="#16a34a" />
                     ) : (
-                      <FileText size={18} className="file-icon" color="#dc2626" />
+                      <FileText size={18} className="file-icon" color="#c32b1e" />
                     )}
                     {file.name}
                   </div>
