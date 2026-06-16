@@ -65,6 +65,9 @@ services:
       target: production
       args:
         VITE_API_BASE_URL: "${VITE_API_BASE_URL:-/api/v1}"
+        VITE_API_URL: "${VITE_API_URL:-/api/v1}"
+        VITE_SUPABASE_URL: "${VITE_SUPABASE_URL:?Set VITE_SUPABASE_URL in .env}"
+        VITE_SUPABASE_ANON_KEY: "${VITE_SUPABASE_ANON_KEY:?Set VITE_SUPABASE_ANON_KEY in .env}"
     container_name: dcf-frontend
     restart: always
     ports:

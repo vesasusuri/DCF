@@ -8,7 +8,7 @@ validate_required_env() {
     echo "ERROR: DATABASE_URL is not set."
     echo "  Add your Supabase Postgres connection string to the project root .env file:"
     echo "  DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres"
-    echo "  Find it in Supabase → Project Settings → Database → Connection string."
+    echo "  Find it in Supabase â†’ Project Settings â†’ Database â†’ Connection string."
     missing=1
   fi
 
@@ -20,7 +20,7 @@ validate_required_env() {
 
   if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
     echo "ERROR: SUPABASE_SERVICE_ROLE_KEY is not set."
-    echo "  Add to .env from Supabase → Project Settings → API → service_role key."
+    echo "  Add to .env from Supabase â†’ Project Settings â†’ API â†’ service_role key."
     missing=1
   fi
 
