@@ -1,43 +1,41 @@
-import { useEffect, useState } from 'react'
-import { api } from './lib/api'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { MainLayout, PageWrapper } from './components/layout/MainLayout'
+import { ProjectsOverview } from './pages/ProjectsOverview'
+import { UploadHub } from './pages/UploadHub'
+import { DataMapping } from './pages/DataMapping'
+import { ExtractionReview } from './pages/ExtractionReview'
 
-type HealthResponse = {
-  status: string
-  environment: string
+function PlaceholderPage({ title, code }: { title: string; code: string }) {
+  return (
+    <PageWrapper breadcrumbs={[{ label: title, current: true }]}>
+      <div className="page-eyebrow">{code}</div>
+      <h1 className="page-title">{title}</h1>
+      <p style={{ color: 'var(--color-text-muted)', marginTop: 16 }}>
+        Dieser Bereich wird in Kürze verfügbar sein.
+      </p>
+    </PageWrapper>
+  )
 }
 
 function App() {
-  const [health, setHealth] = useState<HealthResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api
-      .getHealth()
-      .then(setHealth)
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [])
-
   return (
-    <main>
-      <h1>DCF</h1>
-      <p>React + Vite frontend connected to a FastAPI backend with Supabase.</p>
-
-      <section className="card">
-        <h2>API Health</h2>
-        {loading && <span className="status loading">Checking backend...</span>}
-        {!loading && health && (
-          <span className="status ok">
-            {health.status} ({health.environment})
-          </span>
-        )}
-        {!loading && error && <span className="status error">{error}</span>}
-        <p style={{ marginTop: '1rem' }}>
-          API base URL: <code>{import.meta.env.VITE_API_URL ?? '/api/v1'}</code>
-        </p>
-      </section>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<MainLayout />}>
+          <Route index element={<Navigate to="/projects" replace />} />
+          <Route path="/projects" element={<ProjectsOverview />} />
+          <Route path="/upload" element={<UploadHub />} />
+          <Route path="/upload/mapping" element={<DataMapping />} />
+          <Route path="/data-review/extraction" element={<ExtractionReview />} />
+          <Route path="/assumptions" element={<PlaceholderPage title="Annahmen" code="S05" />} />
+          <Route path="/runs" element={<PlaceholderPage title="Bewertungsläufe" code="S06" />} />
+          <Route path="/results" element={<PlaceholderPage title="Ergebnisse" code="S07" />} />
+          <Route path="/dashboards" element={<PlaceholderPage title="Dashboards" code="S08" />} />
+          <Route path="/reports" element={<PlaceholderPage title="Berichte" code="S18" />} />
+          <Route path="/admin" element={<PlaceholderPage title="Admin" code="S11" />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }
 
