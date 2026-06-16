@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* Colliers brand palette (aligned with Figma) */
   --color-primary: #00467f;

@@ -1,0 +1,1 @@
+"""Exit value calculation — stub."""

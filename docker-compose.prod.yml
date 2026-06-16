@@ -1,0 +1,114 @@
+# Production stack — optimized images, no source bind mounts, internal networking.
+# Usage: docker compose -f docker-compose.prod.yml up --build -d
+
+name: dcf
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: dcf-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - dcf_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: dcf-backend
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "${DATABASE_URL:?Set DATABASE_URL in .env to your Supabase Postgres connection string}"
+      DIRECT_URL: "${DIRECT_URL:?Set DIRECT_URL in .env for migrations}"
+      SUPABASE_URL: "${SUPABASE_URL:?Set SUPABASE_URL in .env}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:?Set SUPABASE_SERVICE_ROLE_KEY in .env}"
+      REDIS_URL: "${REDIS_URL:-redis://redis:6379/0}"
+      CELERY_BROKER_URL: "${CELERY_BROKER_URL:-redis://redis:6379/0}"
+      CELERY_RESULT_BACKEND: "${CELERY_RESULT_BACKEND:-redis://redis:6379/0}"
+      SUPABASE_STORAGE_BUCKET: "${SUPABASE_STORAGE_BUCKET:-dcf-files}"
+      UVICORN_RELOAD: "false"
+      UVICORN_ACCESS_LOG: "${UVICORN_ACCESS_LOG:-false}"
+      REDIS_WAIT_TIMEOUT: "${REDIS_WAIT_TIMEOUT:-30}"
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "http://127.0.0.1:8000/api/v1/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - dcf_network
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: dcf-worker
+    restart: always
+    command: ["celery", "-A", "app.worker", "worker", "--loglevel=info"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "${DATABASE_URL:?Set DATABASE_URL in .env}"
+      DIRECT_URL: "${DIRECT_URL:?Set DIRECT_URL in .env}"
+      SUPABASE_URL: "${SUPABASE_URL:?Set SUPABASE_URL in .env}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:?Set SUPABASE_SERVICE_ROLE_KEY in .env}"
+      REDIS_URL: "${REDIS_URL:-redis://redis:6379/0}"
+      CELERY_BROKER_URL: "${CELERY_BROKER_URL:-redis://redis:6379/0}"
+      CELERY_RESULT_BACKEND: "${CELERY_RESULT_BACKEND:-redis://redis:6379/0}"
+      SUPABASE_STORAGE_BUCKET: "${SUPABASE_STORAGE_BUCKET:-dcf-files}"
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - dcf_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_API_BASE_URL: "${VITE_API_BASE_URL:-/api/v1}"
+    container_name: dcf-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PUBLISH_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - dcf_network
+
+volumes:
+  redis_data:
+  backend_uploads:
+
+networks:
+  dcf_network:
+    driver: bridge
