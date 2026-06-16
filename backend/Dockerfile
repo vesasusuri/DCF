@@ -49,7 +49,8 @@ RUN pip install --no-cache-dir /wheels/* \
 
 COPY --chown=appuser:appgroup . .
 
-RUN chmod +x /app/start.sh \
+RUN sed -i 's/\r$//' /app/start.sh \
+    && chmod +x /app/start.sh \
     && mkdir -p /app/uploads \
     && chown -R appuser:appgroup /app
 
