@@ -3,7 +3,11 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+<<<<<<< HEAD
 ROOT_DIR = Path(__file__).resolve().parents[2]
+=======
+ROOT_DIR = Path(__file__).resolve().parents[3]
+>>>>>>> 78bbf064389164fb8c5cdaeeb14794ec4034a572
 ENV_FILE = ROOT_DIR / ".env"
 
 
@@ -51,12 +55,22 @@ class Settings(BaseSettings):
 
     @property
     def alembic_url(self) -> str:
+<<<<<<< HEAD
         url = self.direct_url or self.database_url
         if url.startswith("postgresql+asyncpg://"):
             return url.replace("postgresql+asyncpg://", "postgresql://", 1)
         if url.startswith("postgres://"):
             return url.replace("postgres://", "postgresql://", 1)
         return url
+=======
+        # Migrations use session-mode pooler (DIRECT_URL) or direct DB host (DATABASE_URL).
+        url = self.direct_url or self.database_url
+        if url.startswith("postgresql+asyncpg://"):
+            url = url.replace("postgresql+asyncpg://", "postgresql://", 1)
+        elif url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url.split("?")[0]
+>>>>>>> 78bbf064389164fb8c5cdaeeb14794ec4034a572
 
     @property
     def broker_url(self) -> str:
