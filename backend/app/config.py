@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
 
     database_url: str = ""
+    database_migration_url: str = ""
     direct_url: str = ""
 
     @property
@@ -38,4 +39,7 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    if not settings.supabase_anon_key:
+        settings.supabase_anon_key = os.getenv("VITE_SUPABASE_ANON_KEY", "")
+    return settings

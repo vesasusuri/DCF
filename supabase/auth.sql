@@ -1,7 +1,7 @@
 -- Auth profiles and roles (run in Supabase SQL editor after schema.sql)
 
 do $$ begin
-  create type public.app_role as enum ('user', 'admin');
+  create type public.app_role as enum ('user', 'admin', 'portfolio_manager');
 exception
   when duplicate_object then null;
 end $$;

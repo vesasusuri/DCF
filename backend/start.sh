@@ -71,6 +71,18 @@ PY
 validate_required_env
 wait_for_redis
 
+if [ "${RUN_STARTUP_SEED:-true}" = "true" ]; then
+  echo "Running startup seed (Portfolio Manager)..."
+  if python scripts/seed_portfolio_manager.py; then
+    echo "Startup seed finished."
+  else
+    echo "ERROR: Portfolio Manager startup seed failed."
+    if [ "${STARTUP_SEED_REQUIRED:-false}" = "true" ]; then
+      exit 1
+    fi
+  fi
+fi
+
 echo "Starting FastAPI..."
 UVICORN_ARGS="app.main:app --host 0.0.0.0 --port 8000"
 if [ "${UVICORN_RELOAD:-false}" = "true" ]; then

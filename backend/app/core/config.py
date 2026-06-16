@@ -1,13 +1,10 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-<<<<<<< HEAD
-ROOT_DIR = Path(__file__).resolve().parents[2]
-=======
 ROOT_DIR = Path(__file__).resolve().parents[3]
->>>>>>> 78bbf064389164fb8c5cdaeeb14794ec4034a572
 ENV_FILE = ROOT_DIR / ".env"
 
 
@@ -34,6 +31,7 @@ class Settings(BaseSettings):
     supabase_storage_bucket: str = "dcf-files"
 
     database_url: str = ""
+    database_migration_url: str = ""
     direct_url: str = ""
 
     redis_url: str = "redis://localhost:6379/0"
@@ -55,22 +53,14 @@ class Settings(BaseSettings):
 
     @property
     def alembic_url(self) -> str:
-<<<<<<< HEAD
-        url = self.direct_url or self.database_url
-        if url.startswith("postgresql+asyncpg://"):
-            return url.replace("postgresql+asyncpg://", "postgresql://", 1)
-        if url.startswith("postgres://"):
-            return url.replace("postgres://", "postgresql://", 1)
-        return url
-=======
-        # Migrations use session-mode pooler (DIRECT_URL) or direct DB host (DATABASE_URL).
-        url = self.direct_url or self.database_url
+        url = (self.database_migration_url or self.direct_url or self.database_url).strip()
+        if not url:
+            return url
         if url.startswith("postgresql+asyncpg://"):
             url = url.replace("postgresql+asyncpg://", "postgresql://", 1)
         elif url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
         return url.split("?")[0]
->>>>>>> 78bbf064389164fb8c5cdaeeb14794ec4034a572
 
     @property
     def broker_url(self) -> str:
@@ -83,4 +73,7 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    if not settings.supabase_anon_key:
+        settings.supabase_anon_key = os.getenv("VITE_SUPABASE_ANON_KEY", "")
+    return settings

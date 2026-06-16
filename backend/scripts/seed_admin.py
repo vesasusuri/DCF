@@ -98,6 +98,8 @@ def main() -> None:
     admin_password = os.environ.get("SYSTEM_ADMIN_PASSWORD", "Admin1234!")
     user_email = os.environ.get("DEMO_USER_EMAIL", "user@example.com")
     user_password = os.environ.get("DEMO_USER_PASSWORD", "User1234!")
+    pm_email = os.environ.get("PORTFOLIO_MANAGER_EMAIL", "pm@example.com")
+    pm_password = os.environ.get("PORTFOLIO_MANAGER_PASSWORD", "Pm1234!")
 
     ensure_user(
         client,
@@ -113,10 +115,19 @@ def main() -> None:
         role="user",
         full_name="Demo User",
     )
+    ensure_user(
+        client,
+        email=pm_email,
+        password=pm_password,
+        role="portfolio_manager",
+        full_name="Portfolio Manager",
+    )
 
     print("\nSeeded accounts:")
     print(f"  Admin : {admin_email} / {admin_password}")
     print(f"  User  : {user_email} / {user_password}")
+    print(f"  PM    : {pm_email} / {pm_password}")
+    print("\nTip: run `python scripts/seed_portfolio_manager.py` for detailed PM seed logs.")
 
 
 if __name__ == "__main__":
