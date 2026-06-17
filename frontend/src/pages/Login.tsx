@@ -83,7 +83,7 @@ export function Login() {
             </button>
           </form>
 
-          <div className="login-hint card">
+          {/* <div className="login-hint card">
             <div className="login-hint-title">Demo-Zugänge</div>
             <div className="login-hint-row">
               <span className="badge badge-neutral">User</span>
@@ -92,8 +92,8 @@ export function Login() {
             <div className="login-hint-row">
               <span className="badge badge-warning">Admin</span>
               <span>admin@example.com · Admin1234!</span>
-            </div>
-          </div>
+            </div> */}
+          {/* </div> */}
         </div>
       </div>
     </div>
