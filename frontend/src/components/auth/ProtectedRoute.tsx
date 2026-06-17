@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { getPostAuthPath } from '../../lib/onboarding'
 
 function AuthLoading() {
   return (
@@ -27,7 +28,36 @@ export function GuestRoute() {
   if (loading) return <AuthLoading />
 
   if (user) {
-    return <Navigate to={user.role === 'admin' ? '/admin' : '/projects'} replace />
+    return <Navigate to={getPostAuthPath(user)} replace />
+  }
+
+  return <Outlet />
+}
+
+export function OnboardingRoute() {
+  const { user, loading } = useAuth()
+
+  if (loading) return <AuthLoading />
+  if (!user) return <Navigate to="/login" replace />
+
+  if (user.onboardingStep === 'complete') {
+    return <Navigate to={getPostAuthPath(user)} replace />
+  }
+
+  return <Outlet />
+}
+
+export function OnboardingGate() {
+  const { user, loading } = useAuth()
+
+  if (loading) return null
+
+  if (user?.onboardingStep === 'change-password') {
+    return <Navigate to="/auth/change-password" replace />
+  }
+
+  if (user?.onboardingStep === 'verify-email') {
+    return <Navigate to="/auth/verify-email" replace />
   }
 
   return <Outlet />
@@ -54,5 +84,5 @@ export function AdminRoute() {
 export function RoleHomeRedirect() {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
-  return <Navigate to={user.role === 'admin' ? '/admin' : '/projects'} replace />
+  return <Navigate to={getPostAuthPath(user)} replace />
 }

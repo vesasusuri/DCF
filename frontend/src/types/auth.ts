@@ -1,10 +1,13 @@
 export type UserRole = 'user' | 'admin'
 
+export type OnboardingStep = 'change-password' | 'verify-email' | 'complete'
+
 export type AuthUser = {
   id: string
   email: string
   fullName: string
   role: UserRole
+  onboardingStep: OnboardingStep
 }
 
 export type ProfileRow = {

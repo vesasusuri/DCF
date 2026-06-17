@@ -2,8 +2,18 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Users, Settings, Activity, Shield } from 'lucide-react'
 import { AdminPageWrapper } from '../../components/layout/AdminLayout'
-import { api, type AdminStats } from '../../lib/api'
+import { api, type AdminStats, type AuditLog } from '../../lib/api'
+import { actionLabel, formatAuditDetails } from '../../lib/auditDisplay'
 import { useAuth } from '../../contexts/AuthContext'
+
+function formatLogTime(value: string) {
+  return new Date(value).toLocaleString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 const quickLinks = [
   { title: 'Benutzerverwaltung', subtitle: 'Konten anlegen und Rollen zuweisen', icon: Users, path: '/admin/users', code: 'A02' },
@@ -15,6 +25,7 @@ const quickLinks = [
 export function AdminOverview() {
   const { user } = useAuth()
   const [stats, setStats] = useState<AdminStats | null>(null)
+  const [recentLogs, setRecentLogs] = useState<AuditLog[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -22,6 +33,11 @@ export function AdminOverview() {
       .getStats()
       .then(setStats)
       .catch((err: Error) => setError(err.message))
+
+    api.admin
+      .listLogs(1, 5)
+      .then((data) => setRecentLogs(data.items))
+      .catch(() => undefined)
   }, [])
 
   return (
@@ -102,6 +118,39 @@ export function AdminOverview() {
               </Link>
             )
           })}
+        </div>
+
+        <div className="card admin-table-card admin-recent-logs">
+          <div className="admin-recent-logs-header">
+            <div>
+              <div className="card-section-title">Letzte Aktivitäten</div>
+              <div className="card-section-sub">Die fünf neuesten Protokolleinträge</div>
+            </div>
+            <Link to="/admin/audit" className="btn-link-primary">
+              Alle anzeigen →
+            </Link>
+          </div>
+
+          {recentLogs.length === 0 ? (
+            <div className="admin-empty-state">Noch keine Aktivitäten protokolliert.</div>
+          ) : (
+            <div className="admin-audit-list">
+              {recentLogs.map((log) => (
+                <div key={log.id} className="admin-audit-item">
+                  <div className="admin-audit-dot" />
+                  <div className="admin-audit-content">
+                    <div className="admin-audit-title">
+                      {actionLabel(log.action)}{' '}
+                      <span>({log.actor_name ?? log.actor_email ?? 'System'})</span>
+                    </div>
+                    <div className="admin-audit-meta">
+                      {formatLogTime(log.created_at)} · {formatAuditDetails(log)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </AdminPageWrapper>

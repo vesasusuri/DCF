@@ -9,6 +9,8 @@ import {
 } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { recordPlatformEvent } from '../lib/audit'
+import { getOnboardingStep } from '../lib/onboarding'
 import type { AuthUser, UserRole } from '../types/auth'
 
 type AuthContextValue = {
@@ -16,6 +18,9 @@ type AuthContextValue = {
   loading: boolean
   signIn: (email: string, password: string) => Promise<AuthUser>
   signOut: () => Promise<void>
+  changePassword: (newPassword: string) => Promise<AuthUser>
+  resendVerificationEmail: () => Promise<void>
+  refreshUser: () => Promise<AuthUser | null>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -32,12 +37,11 @@ function authUserFromSession(sessionUser: User): AuthUser {
       sessionUser.email?.split('@')[0] ||
       'Benutzer',
     role,
+    onboardingStep: getOnboardingStep(sessionUser),
   }
 }
 
 function resolveAuthUser(sessionUser: User): AuthUser {
-  // Role lives in Supabase user_metadata (set by seed_admin script).
-  // Avoids /rest/v1/profiles calls and broken RLS recursion on older migrations.
   return authUserFromSession(sessionUser)
 }
 
@@ -46,11 +50,11 @@ export function formatAuthError(error: unknown): string {
     const message = String((error as { message: string }).message)
 
     if (message.toLowerCase().includes('invalid login credentials')) {
-      return 'E-Mail oder Passwort ist falsch. Verwenden Sie die Demo-Zugänge unten.'
+      return 'E-Mail oder Passwort ist falsch.'
     }
 
     if (message.toLowerCase().includes('email not confirmed')) {
-      return 'E-Mail-Adresse ist noch nicht bestätigt.'
+      return 'Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.'
     }
 
     return message
@@ -63,6 +67,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const applySession = useCallback((sessionUser: User | null) => {
+    if (!sessionUser) {
+      setUser(null)
+      return null
+    }
+    const profile = resolveAuthUser(sessionUser)
+    setUser(profile)
+    return profile
+  }, [])
+
+  const refreshUser = useCallback(async () => {
+    if (!supabase) {
+      setUser(null)
+      return null
+    }
+
+    const { data, error } = await supabase.auth.refreshSession()
+    if (error || !data.session?.user) {
+      setUser(null)
+      return null
+    }
+
+    return applySession(data.session.user)
+  }, [applySession])
+
   const loadSession = useCallback(async () => {
     if (!supabase) {
       setUser(null)
@@ -71,18 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const { data } = await supabase.auth.getSession()
-    const sessionUser = data.session?.user
-
-    if (!sessionUser) {
-      setUser(null)
-      setLoading(false)
-      return
-    }
-
-    const profile = resolveAuthUser(sessionUser)
-    setUser(profile)
+    applySession(data.session?.user ?? null)
     setLoading(false)
-  }, [])
+  }, [applySession])
 
   useEffect(() => {
     void loadSession()
@@ -90,23 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        setUser(null)
-        setLoading(false)
-        return
-      }
-
-      setUser(resolveAuthUser(session.user))
+      applySession(session?.user ?? null)
       setLoading(false)
     })
 
     return () => subscription.subscription.unsubscribe()
-  }, [loadSession])
+  }, [applySession, loadSession])
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) {
       throw new Error(
-        'Supabase ist nicht konfiguriert. Setzen Sie VITE_SUPABASE_URL und VITE_SUPABASE_ANON_KEY und starten Sie die App neu.',
+        'Supabase ist nicht konfiguriert. Setzen Sie VITE_SUPABASE_URL und VITE_SUPABASE_ANON_KEY.',
       )
     }
 
@@ -114,15 +128,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
     if (!data.user) throw new Error('Anmeldung fehlgeschlagen.')
 
-    const profile = resolveAuthUser(data.user)
-    setUser(profile)
+    const profile = applySession(data.user)!
+    void recordPlatformEvent({ action: 'login' })
     return profile
-  }, [])
+  }, [applySession])
+
+  const changePassword = useCallback(async (newPassword: string) => {
+    if (!supabase) throw new Error('Supabase ist nicht konfiguriert.')
+
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+      data: { must_change_password: false },
+    })
+    if (error) throw error
+    if (!data.user) throw new Error('Passwort konnte nicht geändert werden.')
+
+    const email = data.user.email
+    if (email) {
+      await supabase.auth.resend({ type: 'signup', email })
+    }
+
+    return applySession(data.user)!
+  }, [applySession])
+
+  const resendVerificationEmail = useCallback(async () => {
+    if (!supabase || !user?.email) throw new Error('Keine Sitzung gefunden.')
+    const { error } = await supabase.auth.resend({ type: 'signup', email: user.email })
+    if (error) throw error
+  }, [user?.email])
 
   const signOut = useCallback(async () => {
+    if (user) {
+      void recordPlatformEvent({ action: 'logout' })
+    }
     if (supabase) await supabase.auth.signOut()
     setUser(null)
-  }, [])
+  }, [user])
 
   const value = useMemo(
     () => ({
@@ -130,8 +171,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       signIn,
       signOut,
+      changePassword,
+      resendVerificationEmail,
+      refreshUser,
     }),
-    [user, loading, signIn, signOut],
+    [user, loading, signIn, signOut, changePassword, resendVerificationEmail, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

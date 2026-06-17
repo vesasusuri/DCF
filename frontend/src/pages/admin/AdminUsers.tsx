@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { AdminPageWrapper } from '../../components/layout/AdminLayout'
-import { api, type AdminUser, type CreateAdminUserPayload } from '../../lib/api'
+import { api, type AdminUser, type InviteAdminUserPayload } from '../../lib/api'
 
 function formatDate(value: string | null) {
   if (!value) return '—'
@@ -13,17 +13,23 @@ function formatDate(value: string | null) {
   })
 }
 
-const emptyInvite: CreateAdminUserPayload = {
+const emptyInvite: InviteAdminUserPayload = {
   email: '',
-  password: '',
   full_name: '',
   role: 'user',
+}
+
+function userStatusBadge(user: AdminUser) {
+  if (user.must_change_password) return { label: 'Einladung offen', className: 'badge-warning' }
+  if (!user.email_verified) return { label: 'E-Mail offen', className: 'badge-neutral' }
+  return { label: 'Aktiv', className: 'badge-success' }
 }
 
 export function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [invite, setInvite] = useState(emptyInvite)
   const [saving, setSaving] = useState(false)
@@ -49,13 +55,15 @@ export function AdminUsers() {
     event.preventDefault()
     setSaving(true)
     setError(null)
+    setSuccess(null)
     try {
-      await api.admin.createUser(invite)
+      const result = await api.admin.inviteUser(invite)
       setInvite(emptyInvite)
       setInviteOpen(false)
+      setSuccess(result.message)
       await loadUsers()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Benutzer konnte nicht erstellt werden.')
+      setError(err instanceof Error ? err.message : 'Einladung konnte nicht gesendet werden.')
     } finally {
       setSaving(false)
     }
@@ -64,6 +72,7 @@ export function AdminUsers() {
   async function toggleRole(user: AdminUser) {
     const nextRole = user.role === 'admin' ? 'user' : 'admin'
     setError(null)
+    setSuccess(null)
     try {
       await api.admin.updateUser(user.id, { role: nextRole })
       await loadUsers()
@@ -97,6 +106,7 @@ export function AdminUsers() {
         </div>
 
         {error && <div className="login-error admin-banner-error">{error}</div>}
+        {success && <div className="login-success admin-banner-error">{success}</div>}
 
         <div className="card admin-table-card">
           <div className="admin-table-header">
@@ -116,34 +126,41 @@ export function AdminUsers() {
                     <th>Name</th>
                     <th>E-Mail</th>
                     <th>Rolle</th>
+                    <th>Status</th>
                     <th>Erstellt</th>
                     <th>Letzte Anmeldung</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td>{user.full_name}</td>
-                      <td>{user.email}</td>
-                      <td>
-                        <span className={`badge ${user.role === 'admin' ? 'badge-warning' : 'badge-neutral'}`}>
-                          {user.role === 'admin' ? 'Admin' : 'Benutzer'}
-                        </span>
-                      </td>
-                      <td>{formatDate(user.created_at)}</td>
-                      <td>{formatDate(user.last_sign_in_at)}</td>
-                      <td className="admin-table-actions">
-                        <button
-                          type="button"
-                          className="btn-link-primary"
-                          onClick={() => void toggleRole(user)}
-                        >
-                          {user.role === 'admin' ? 'Zu Benutzer' : 'Zu Admin'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {users.map((user) => {
+                    const status = userStatusBadge(user)
+                    return (
+                      <tr key={user.id}>
+                        <td>{user.full_name}</td>
+                        <td>{user.email}</td>
+                        <td>
+                          <span className={`badge ${user.role === 'admin' ? 'badge-warning' : 'badge-neutral'}`}>
+                            {user.role === 'admin' ? 'Admin' : 'Benutzer'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge ${status.className}`}>{status.label}</span>
+                        </td>
+                        <td>{formatDate(user.created_at)}</td>
+                        <td>{formatDate(user.last_sign_in_at)}</td>
+                        <td className="admin-table-actions">
+                          <button
+                            type="button"
+                            className="btn-link-primary"
+                            onClick={() => void toggleRole(user)}
+                          >
+                            {user.role === 'admin' ? 'Zu Benutzer' : 'Zu Admin'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -153,8 +170,11 @@ export function AdminUsers() {
         {inviteOpen && (
           <div className="admin-modal-backdrop" onClick={() => setInviteOpen(false)}>
             <div className="card admin-modal" onClick={(event) => event.stopPropagation()}>
-              <div className="page-eyebrow login-eyebrow">NEUER BENUTZER</div>
+              <div className="page-eyebrow login-eyebrow">EINLADUNG</div>
               <h2 className="admin-modal-title">Benutzer einladen</h2>
+              <p className="login-subtitle">
+                Ein temporäres Passwort wird automatisch erstellt und per E-Mail versendet.
+              </p>
 
               <form className="login-form" onSubmit={handleInvite}>
                 <label className="form-field">
@@ -179,18 +199,6 @@ export function AdminUsers() {
                 </label>
 
                 <label className="form-field">
-                  <span className="form-label">Passwort</span>
-                  <input
-                    className="form-input"
-                    type="password"
-                    value={invite.password}
-                    onChange={(event) => setInvite({ ...invite, password: event.target.value })}
-                    minLength={8}
-                    required
-                  />
-                </label>
-
-                <label className="form-field">
                   <span className="form-label">Rolle</span>
                   <select
                     className="form-input"
@@ -209,7 +217,7 @@ export function AdminUsers() {
                     Abbrechen
                   </button>
                   <button type="submit" className="btn btn-primary" disabled={saving}>
-                    {saving ? 'Speichern…' : 'Benutzer anlegen'}
+                    {saving ? 'Senden…' : 'Einladung senden'}
                   </button>
                 </div>
               </form>
