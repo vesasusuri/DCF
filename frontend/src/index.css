@@ -336,6 +336,20 @@ body {
   cursor: pointer;
 }
 
+.search-input-field {
+  border: none;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--color-text);
+}
+
+.search-input-field::placeholder {
+  color: var(--color-text-muted);
+}
+
 /* ── Page Content ── */
 
 .page-content {

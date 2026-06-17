@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+export type UserRole = 'user' | 'admin' | 'portfolio_manager'
 
 export async function getAccessToken(): Promise<string | null> {
   if (!supabase) return null

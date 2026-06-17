@@ -21,6 +21,7 @@ def get_engine():
             settings.sqlalchemy_url,
             echo=settings.debug,
             pool_pre_ping=True,
+            connect_args=settings.sqlalchemy_connect_args,
         )
     return _engine
 

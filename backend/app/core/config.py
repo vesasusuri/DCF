@@ -1,11 +1,68 @@
 import os
+import ssl
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+from dotenv import dotenv_values
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 ENV_FILE = ROOT_DIR / ".env"
+
+# asyncpg does not accept these URL query params as connect() kwargs.
+_ASYNCPG_STRIPPED_QUERY_PARAMS = frozenset({"pgbouncer"})
+
+
+def _resolve_supabase_anon_key() -> str:
+    """Read anon key from .env when only VITE_SUPABASE_ANON_KEY is defined."""
+    values = dotenv_values(ENV_FILE)
+    return (values.get("SUPABASE_ANON_KEY") or values.get("VITE_SUPABASE_ANON_KEY") or "").strip()
+
+
+def _to_asyncpg_scheme(url: str) -> str:
+    if url.startswith("postgresql+asyncpg://"):
+        return url
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    return url
+
+
+def _strip_asyncpg_query_params(url: str) -> str:
+    parsed = urlparse(url)
+    if not parsed.query:
+        return url
+
+    query_pairs = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key.lower() not in _ASYNCPG_STRIPPED_QUERY_PARAMS
+    ]
+    return urlunparse(parsed._replace(query=urlencode(query_pairs)))
+
+
+def _uses_supabase_transaction_pooler(url: str) -> bool:
+    normalized = url.replace("postgresql+asyncpg://", "postgresql://")
+    parsed = urlparse(normalized)
+    query = (parsed.query or "").lower()
+    return parsed.port == 6543 or "pgbouncer=true" in query
+
+
+def _is_supabase_database_host(url: str) -> bool:
+    normalized = url.replace("postgresql+asyncpg://", "postgresql://")
+    hostname = urlparse(normalized).hostname or ""
+    return "supabase.com" in hostname
+
+
+def _supabase_ssl_context() -> ssl.SSLContext:
+    """Supabase requires SSL; relax verification for local development on Windows."""
+    context = ssl.create_default_context()
+    if os.getenv("APP_ENV", "development") == "development":
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+    return context
 
 
 class Settings(BaseSettings):
@@ -40,16 +97,37 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        origins: list[str] = []
+        for value in (self.cors_origins, os.getenv("BACKEND_CORS_ORIGINS", "")):
+            origins.extend(origin.strip() for origin in value.split(",") if origin.strip())
+        # Preserve order while deduplicating.
+        return list(dict.fromkeys(origins))
+
+    @property
+    def runtime_database_url(self) -> str:
+        """Prefer direct/session connection for async ORM; pooler URL is a fallback."""
+        return (self.direct_url or self.database_migration_url or self.database_url).strip()
 
     @property
     def sqlalchemy_url(self) -> str:
-        url = self.database_url
-        if url.startswith("postgresql://"):
-            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        if url.startswith("postgres://"):
-            return url.replace("postgres://", "postgresql+asyncpg://", 1)
-        return url
+        url = self.runtime_database_url
+        if not url:
+            return ""
+        return _strip_asyncpg_query_params(_to_asyncpg_scheme(url))
+
+    @property
+    def sqlalchemy_connect_args(self) -> dict[str, object]:
+        url = self.runtime_database_url
+        if not url:
+            return {}
+
+        connect_args: dict[str, object] = {}
+        if _is_supabase_database_host(url):
+            connect_args["ssl"] = _supabase_ssl_context()
+        if _uses_supabase_transaction_pooler(url):
+            # Required for Supabase transaction pooler (PgBouncer) with asyncpg.
+            connect_args["statement_cache_size"] = 0
+        return connect_args
 
     @property
     def alembic_url(self) -> str:
@@ -75,5 +153,5 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     settings = Settings()
     if not settings.supabase_anon_key:
-        settings.supabase_anon_key = os.getenv("VITE_SUPABASE_ANON_KEY", "")
+        settings.supabase_anon_key = os.getenv("SUPABASE_ANON_KEY", "") or _resolve_supabase_anon_key()
     return settings

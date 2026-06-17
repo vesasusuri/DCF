@@ -1,11 +1,14 @@
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 
+import logging
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from supabase import Client, create_client
 
+from app.core.auth import PORTFOLIO_MANAGER_ROLE
 from app.core.config import get_settings
 from app.core.database import get_session
 from app.domain.interfaces.file_storage import IFileStorage
@@ -21,12 +24,14 @@ from app.infrastructure.repositories.sql_profile_repository import SqlProfileRep
 from app.infrastructure.repositories.sql_project_repository import SqlProjectRepository
 from app.infrastructure.storage.supabase_file_storage import SupabaseFileStorage
 from app.services.audit_service import AuditService
+from app.services.dashboard_service import DashboardService
 from app.services.portfolio_manager_service import PortfolioManagerService
 from app.services.project_service import ProjectService
 
 security = HTTPBearer(auto_error=False)
 
 ADMIN_ROLE = "admin"
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -39,7 +44,7 @@ class CurrentUser:
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     settings = get_settings()
-    if not settings.database_url:
+    if not settings.runtime_database_url:
         raise HTTPException(
             status_code=503,
             detail="DATABASE_URL is not configured.",
@@ -76,6 +81,12 @@ async def get_project_service(
     project_repo: IProjectRepository = Depends(get_project_repo),
 ) -> ProjectService:
     return ProjectService(project_repo=project_repo)
+
+
+async def get_dashboard_service(
+    project_repo: IProjectRepository = Depends(get_project_repo),
+) -> DashboardService:
+    return DashboardService(project_repo=project_repo)
 
 
 async def get_file_storage() -> IFileStorage:
@@ -121,7 +132,6 @@ async def get_bearer_token(
 
 async def get_current_user(
     token: str = Depends(get_bearer_token),
-    profile_repo: IProfileRepository = Depends(get_profile_repo),
 ) -> CurrentUser:
     client = get_supabase_auth_client()
     try:
@@ -139,22 +149,13 @@ async def get_current_user(
             detail="Invalid or expired access token",
         )
 
-    profile = await profile_repo.get_by_id(auth_user.id)
-    if profile is None:
-        metadata = auth_user.user_metadata or {}
-        role = metadata.get("role", "user")
-        return CurrentUser(
-            id=auth_user.id,
-            email=auth_user.email or "",
-            full_name=metadata.get("full_name"),
-            role=role,
-        )
-
+    metadata = auth_user.user_metadata or {}
+    role = metadata.get("role", "user")
     return CurrentUser(
-        id=profile.id,
-        email=profile.email,
-        full_name=profile.full_name,
-        role=profile.role,
+        id=auth_user.id,
+        email=auth_user.email or "",
+        full_name=metadata.get("full_name"),
+        role=role,
     )
 
 
@@ -163,6 +164,21 @@ async def require_admin(current_user: CurrentUser = Depends(get_current_user)) -
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
+        )
+    return current_user
+
+
+def _normalize_role(role: str) -> str:
+    return role.lower().replace("-", "_")
+
+
+async def require_portfolio_manager(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    if _normalize_role(current_user.role) != PORTFOLIO_MANAGER_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Portfolio manager access required",
         )
     return current_user
 

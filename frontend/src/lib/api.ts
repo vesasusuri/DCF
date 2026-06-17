@@ -1,6 +1,22 @@
 import { supabase } from './supabase'
+import type { ProjectListParams } from './queryKeys'
+import type {
+  CreateProjectPayload,
+  DashboardStats,
+  ProjectDetail,
+  ProjectListResponse,
+} from '../types/project'
+export type UserRole = 'user' | 'admin' | 'portfolio_manager'
 
-// In dev, always use the Vite proxy (/api → localhost:8000) to avoid CORS.
+export class ApiError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
 const API_BASE = import.meta.env.DEV
   ? '/api/v1'
   : (import.meta.env.VITE_API_URL ?? '/api/v1')
@@ -115,7 +131,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       const text = await response.text()
       if (text) message = text
     }
-    throw new Error(message)
+    throw new ApiError(message, response.status)
   }
 
   if (response.status === 204) {
@@ -160,6 +176,27 @@ export const api = {
   audit: {
     recordEvent: (payload: CreateAuditLogPayload) =>
       request<{ id: string; action: string; created_at: string }>('/audit/events', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+  },
+
+  dashboard: {
+    getStats: () => request<DashboardStats>('/dashboard/stats'),
+  },
+
+  projects: {
+    list: (params: ProjectListParams = {}) => {
+      const query = new URLSearchParams()
+      if (params.page) query.set('page', String(params.page))
+      if (params.limit) query.set('limit', String(params.limit))
+      if (params.status) query.set('status', params.status)
+      if (params.search) query.set('search', params.search)
+      const suffix = query.toString()
+      return request<ProjectListResponse>(`/projects${suffix ? `?${suffix}` : ''}`)
+    },
+    create: (payload: CreateProjectPayload) =>
+      request<ProjectDetail>('/projects', {
         method: 'POST',
         body: JSON.stringify(payload),
       }),

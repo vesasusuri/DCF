@@ -50,3 +50,8 @@ class UserAlreadyExistsError(DomainError):
     def __init__(self, email: str) -> None:
         super().__init__(f"User already exists: {email}")
         self.email = email
+
+
+class InvalidProjectError(DomainError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)

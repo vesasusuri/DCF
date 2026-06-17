@@ -71,6 +71,18 @@ PY
 validate_required_env
 wait_for_redis
 
+if [ "${RUN_DB_MIGRATIONS:-true}" = "true" ]; then
+  echo "Running database migrations..."
+  if alembic upgrade head; then
+    echo "Database migrations finished."
+  else
+    echo "ERROR: Database migrations failed."
+    if [ "${DB_MIGRATIONS_REQUIRED:-true}" = "true" ]; then
+      exit 1
+    fi
+  fi
+fi
+
 if [ "${RUN_STARTUP_SEED:-true}" = "true" ]; then
   echo "Running startup seed (Portfolio Manager)..."
   if python scripts/seed_portfolio_manager.py; then

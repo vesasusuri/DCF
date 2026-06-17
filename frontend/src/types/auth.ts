@@ -1,4 +1,4 @@
-export type UserRole = 'user' | 'admin'
+export type UserRole = 'user' | 'admin' | 'portfolio_manager'
 
 export type OnboardingStep = 'change-password' | 'verify-email' | 'complete'
 

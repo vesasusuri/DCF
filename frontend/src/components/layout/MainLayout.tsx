@@ -21,13 +21,21 @@ export function MainLayout() {
 export function PageWrapper({
   breadcrumbs,
   children,
+  searchValue,
+  onSearchChange,
 }: {
   breadcrumbs: { label: string; current?: boolean }[]
   children: React.ReactNode
+  searchValue?: string
+  onSearchChange?: (value: string) => void
 }) {
   return (
     <>
-      <TopHeader breadcrumbs={breadcrumbs} />
+      <TopHeader
+        breadcrumbs={breadcrumbs}
+        searchValue={searchValue}
+        onSearchChange={onSearchChange}
+      />
       <div className="page-content">{children}</div>
     </>
   )

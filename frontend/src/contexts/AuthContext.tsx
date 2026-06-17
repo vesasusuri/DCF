@@ -27,7 +27,14 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 function authUserFromSession(sessionUser: User): AuthUser {
   const metadata = sessionUser.user_metadata ?? {}
-  const role: UserRole = metadata.role === 'admin' ? 'admin' : 'user'
+  function normalizeRole(metadataRole: unknown): UserRole {
+    if (metadataRole === 'admin') return 'admin'
+    if (metadataRole === 'portfolio_manager' || metadataRole === 'PORTFOLIO_MANAGER') {
+      return 'portfolio_manager'
+    }
+    return 'user'
+  }
+  const role = normalizeRole(metadata.role)
 
   return {
     id: sessionUser.id,

@@ -5,13 +5,27 @@ import { getUserInitials, useAuth } from '../../contexts/AuthContext'
 
 type TopHeaderProps = {
   breadcrumbs: { label: string; current?: boolean }[]
+  searchValue?: string
+  onSearchChange?: (value: string) => void
 }
 
-export function TopHeader({ breadcrumbs }: TopHeaderProps) {
+export function TopHeader({ breadcrumbs, searchValue, onSearchChange }: TopHeaderProps) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  const roleLabel =
+    user?.role === 'admin'
+      ? 'Admin'
+      : user?.role === 'portfolio_manager'
+        ? 'Portfolio Manager'
+        : 'Benutzer'
+  const roleBadgeClass =
+    user?.role === 'admin'
+      ? 'badge-warning'
+      : user?.role === 'portfolio_manager'
+        ? 'badge-success'
+        : 'badge-neutral'
   const initials = user ? getUserInitials(user.fullName) : 'U'
 
   async function handleSignOut() {
@@ -35,7 +49,18 @@ export function TopHeader({ breadcrumbs }: TopHeaderProps) {
       <div className="header-actions">
         <div className="search-input">
           <Search size={14} />
-          <span>Suchen…</span>
+          {onSearchChange ? (
+            <input
+              type="search"
+              className="search-input-field"
+              value={searchValue ?? ''}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder="Suchen…"
+              aria-label="Projekte suchen"
+            />
+          ) : (
+            <span>Suchen…</span>
+          )}
         </div>
         <div className="scenario-select">
           Szenario: <strong>Basis</strong>
@@ -57,8 +82,8 @@ export function TopHeader({ breadcrumbs }: TopHeaderProps) {
               <div className="user-menu-name">{user?.fullName}</div>
               <div className="user-menu-email">{user?.email}</div>
               <div className="user-menu-role">
-                <span className={`badge ${user?.role === 'admin' ? 'badge-warning' : 'badge-neutral'}`}>
-                  {user?.role === 'admin' ? 'Admin' : 'Benutzer'}
+                <span className={`badge ${roleBadgeClass}`}>
+                  {roleLabel}
                 </span>
               </div>
               <button type="button" className="user-menu-logout" onClick={() => void handleSignOut()}>

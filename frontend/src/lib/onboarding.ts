@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js'
-import type { OnboardingStep } from '../types/auth'
+import type { OnboardingStep, UserRole } from '../types/auth'
 
 export function mustChangePassword(user: User | null | undefined): boolean {
   if (!user) return false
@@ -29,8 +29,12 @@ export function getOnboardingPath(user: User | null | undefined): string | null 
   return null
 }
 
-export function getPostAuthPath(profile: { role: 'user' | 'admin'; onboardingStep: OnboardingStep }): string {
+export function getPostAuthPath(profile: {
+  role: UserRole
+  onboardingStep: OnboardingStep
+}): string {
   if (profile.onboardingStep === 'change-password') return '/auth/change-password'
   if (profile.onboardingStep === 'verify-email') return '/auth/verify-email'
-  return profile.role === 'admin' ? '/admin' : '/projects'
+  if (profile.role === 'admin') return '/admin'
+  return '/projects'
 }

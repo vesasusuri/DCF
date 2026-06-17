@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
 from app.domain.entities.portfolio_manager import PortfolioManagerAssignment, UserProfile
-from app.domain.entities.project import Project
+from app.domain.entities.project import DashboardStats, Project, ProjectListResult
+from app.domain.value_objects.project_filters import ProjectListFilters
 
 
 class IProfileRepository(ABC):
@@ -68,10 +69,16 @@ class IProjectRepository(ABC):
     async def get_by_id(self, project_id: str) -> Project | None: ...
 
     @abstractmethod
-    async def save(self, project: Project) -> None: ...
+    async def save(self, project: Project) -> Project: ...
 
     @abstractmethod
     async def list_by_organisation(self, org_id: str) -> list[Project]: ...
 
     @abstractmethod
     async def list_all(self, limit: int = 20) -> list[Project]: ...
+
+    @abstractmethod
+    async def list_summaries(self, filters: ProjectListFilters) -> ProjectListResult: ...
+
+    @abstractmethod
+    async def get_dashboard_stats(self) -> DashboardStats: ...
