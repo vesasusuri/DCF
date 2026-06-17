@@ -1,7 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuditTracker } from './components/AuditTracker'
 import {
   AdminRoute,
   GuestRoute,
+  OnboardingGate,
+  OnboardingRoute,
   ProtectedRoute,
   RoleHomeRedirect,
   UserRoute,
@@ -13,6 +16,9 @@ import { AdminOverview } from './pages/admin/AdminOverview'
 import { AdminSecurity } from './pages/admin/AdminSecurity'
 import { AdminSettings } from './pages/admin/AdminSettings'
 import { AdminUsers } from './pages/admin/AdminUsers'
+import { AuthCallback } from './pages/auth/AuthCallback'
+import { ChangePassword } from './pages/auth/ChangePassword'
+import { VerifyEmail } from './pages/auth/VerifyEmail'
 import { ProjectsOverview } from './pages/ProjectsOverview'
 import { UploadHub } from './pages/UploadHub'
 import { DataMapping } from './pages/DataMapping'
@@ -34,35 +40,44 @@ function PlaceholderPage({ title, code }: { title: string; code: string }) {
 function App() {
   return (
     <BrowserRouter>
+      <AuditTracker />
       <Routes>
         <Route element={<GuestRoute />}>
           <Route path="/login" element={<Login />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
-          <Route index element={<RoleHomeRedirect />} />
-
-          <Route element={<UserRoute />}>
-            <Route element={<MainLayout />}>
-              <Route path="/projects" element={<ProjectsOverview />} />
-              <Route path="/upload" element={<UploadHub />} />
-              <Route path="/upload/mapping" element={<DataMapping />} />
-              <Route path="/data-review/extraction" element={<ExtractionReview />} />
-              <Route path="/assumptions" element={<PlaceholderPage title="Annahmen" code="S05" />} />
-              <Route path="/runs" element={<PlaceholderPage title="Bewertungsläufe" code="S06" />} />
-              <Route path="/results" element={<PlaceholderPage title="Ergebnisse" code="S07" />} />
-              <Route path="/dashboards" element={<PlaceholderPage title="Dashboards" code="S08" />} />
-              <Route path="/reports" element={<PlaceholderPage title="Berichte" code="S18" />} />
-            </Route>
+          <Route element={<OnboardingRoute />}>
+            <Route path="/auth/change-password" element={<ChangePassword />} />
+            <Route path="/auth/verify-email" element={<VerifyEmail />} />
           </Route>
 
-          <Route element={<AdminRoute />}>
-            <Route element={<AdminLayout />}>
-              <Route path="/admin" element={<AdminOverview />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/settings" element={<AdminSettings />} />
-              <Route path="/admin/audit" element={<AdminAudit />} />
-              <Route path="/admin/security" element={<AdminSecurity />} />
+          <Route element={<OnboardingGate />}>
+            <Route index element={<RoleHomeRedirect />} />
+
+            <Route element={<UserRoute />}>
+              <Route element={<MainLayout />}>
+                <Route path="/projects" element={<ProjectsOverview />} />
+                <Route path="/upload" element={<UploadHub />} />
+                <Route path="/upload/mapping" element={<DataMapping />} />
+                <Route path="/data-review/extraction" element={<ExtractionReview />} />
+                <Route path="/assumptions" element={<PlaceholderPage title="Annahmen" code="S05" />} />
+                <Route path="/runs" element={<PlaceholderPage title="Bewertungsläufe" code="S06" />} />
+                <Route path="/results" element={<PlaceholderPage title="Ergebnisse" code="S07" />} />
+                <Route path="/dashboards" element={<PlaceholderPage title="Dashboards" code="S08" />} />
+                <Route path="/reports" element={<PlaceholderPage title="Berichte" code="S18" />} />
+              </Route>
+            </Route>
+
+            <Route element={<AdminRoute />}>
+              <Route element={<AdminLayout />}>
+                <Route path="/admin" element={<AdminOverview />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/settings" element={<AdminSettings />} />
+                <Route path="/admin/audit" element={<AdminAudit />} />
+                <Route path="/admin/security" element={<AdminSecurity />} />
+              </Route>
             </Route>
           </Route>
         </Route>

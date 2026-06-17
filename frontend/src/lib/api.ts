@@ -1,6 +1,9 @@
 import { supabase } from './supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1'
+// In dev, always use the Vite proxy (/api → localhost:8000) to avoid CORS.
+const API_BASE = import.meta.env.DEV
+  ? '/api/v1'
+  : (import.meta.env.VITE_API_URL ?? '/api/v1')
 
 export type HealthResponse = {
   status: string
@@ -22,6 +25,20 @@ export type AdminUser = {
   role: 'user' | 'admin'
   created_at: string | null
   last_sign_in_at: string | null
+  must_change_password: boolean
+  email_verified: boolean
+}
+
+export type InviteAdminUserPayload = {
+  email: string
+  role: 'user' | 'admin'
+  full_name: string
+}
+
+export type InviteAdminUserResponse = {
+  user: AdminUser
+  email_sent: boolean
+  message: string
 }
 
 export type CreateAdminUserPayload = {
@@ -36,6 +53,33 @@ export type UpdateAdminUserPayload = {
   full_name?: string
   password?: string
 }
+
+export type AuditLog = {
+  id: string
+  actor_id: string | null
+  actor_email: string | null
+  actor_name: string | null
+  action: string
+  resource: string | null
+  details: Record<string, unknown>
+  created_at: string
+}
+
+export type PaginatedAuditLogs = {
+  items: AuditLog[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export type CreateAuditLogPayload = {
+  action: string
+  resource?: string
+  details?: Record<string, unknown>
+}
+
+export const AUDIT_PAGE_SIZE = 25
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const headers: Record<string, string> = {
@@ -87,6 +131,11 @@ export const api = {
   admin: {
     getStats: () => request<AdminStats>('/admin/stats'),
     listUsers: () => request<AdminUser[]>('/admin/users'),
+    inviteUser: (payload: InviteAdminUserPayload) =>
+      request<InviteAdminUserResponse>('/admin/users/invite', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
     createUser: (payload: CreateAdminUserPayload) =>
       request<AdminUser>('/admin/users', {
         method: 'POST',
@@ -95,6 +144,23 @@ export const api = {
     updateUser: (userId: string, payload: UpdateAdminUserPayload) =>
       request<AdminUser>(`/admin/users/${userId}`, {
         method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
+    listLogs: (page = 1, pageSize = AUDIT_PAGE_SIZE) =>
+      request<PaginatedAuditLogs>(
+        `/admin/logs?page=${page}&page_size=${pageSize}`,
+      ),
+    recordLog: (payload: CreateAuditLogPayload) =>
+      request<AuditLog>('/admin/logs', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+  },
+
+  audit: {
+    recordEvent: (payload: CreateAuditLogPayload) =>
+      request<{ id: string; action: string; created_at: string }>('/audit/events', {
+        method: 'POST',
         body: JSON.stringify(payload),
       }),
   },

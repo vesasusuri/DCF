@@ -38,11 +38,20 @@ services:
       UVICORN_ACCESS_LOG: "${UVICORN_ACCESS_LOG:-false}"
       FILE_STORAGE_PROVIDER: "${FILE_STORAGE_PROVIDER:-supabase}"
       REDIS_WAIT_TIMEOUT: "${REDIS_WAIT_TIMEOUT:-30}"
+      APP_PUBLIC_URL: "${APP_PUBLIC_URL:-http://localhost:8080}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-${SMTP_USERNAME:-}}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-${SMTP_FROM_EMAIL:-}}"
+      SMTP_USE_TLS: "${SMTP_USE_TLS:-true}"
     volumes:
       - backend_uploads:/app/uploads
     depends_on:
       redis:
         condition: service_healthy
+    ports:
+      - "${BACKEND_PUBLISH_PORT:-8000}:8000"
     healthcheck:
       test:
         [

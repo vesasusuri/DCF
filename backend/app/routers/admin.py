@@ -1,14 +1,27 @@
 from datetime import UTC, datetime
+from math import ceil
+import secrets
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from supabase import Client
 
-from app.auth import get_admin_client, require_admin
+from app.auth import get_admin_client, get_current_user, require_admin
+from app.audit import (
+    actor_email,
+    actor_full_name,
+    can_record_client_action,
+    user_attr,
+    write_audit_log,
+)
 from app.config import get_settings
+from app.email_service import send_invite_email, smtp_configured
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+AUDIT_PAGE_SIZE_DEFAULT = 25
+AUDIT_PAGE_SIZE_MAX = 100
 
 
 class AdminStatsResponse(BaseModel):
@@ -26,6 +39,8 @@ class AdminUserResponse(BaseModel):
     role: str
     created_at: str | None
     last_sign_in_at: str | None
+    must_change_password: bool = False
+    email_verified: bool = False
 
 
 class CreateAdminUserRequest(BaseModel):
@@ -35,36 +50,92 @@ class CreateAdminUserRequest(BaseModel):
     full_name: str = Field(min_length=1, max_length=120)
 
 
+class InviteAdminUserRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    role: str = Field(default="user", pattern="^(user|admin)$")
+    full_name: str = Field(min_length=1, max_length=120)
+
+
+class InviteAdminUserResponse(BaseModel):
+    user: AdminUserResponse
+    email_sent: bool
+    message: str
+
+
 class UpdateAdminUserRequest(BaseModel):
     role: str | None = Field(default=None, pattern="^(user|admin)$")
     full_name: str | None = Field(default=None, min_length=1, max_length=120)
     password: str | None = Field(default=None, min_length=8)
 
 
+class AuditLogResponse(BaseModel):
+    id: str
+    actor_id: str | None
+    actor_email: str | None
+    actor_name: str | None
+    action: str
+    resource: str | None
+    details: dict[str, Any]
+    created_at: str
+
+
+class PaginatedAuditLogsResponse(BaseModel):
+    items: list[AuditLogResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class CreateAuditLogRequest(BaseModel):
+    action: str = Field(min_length=1, max_length=80)
+    resource: str | None = Field(default=None, max_length=200)
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
 def _user_role(user: Any) -> str:
-    metadata = getattr(user, "user_metadata", None) or user.get("user_metadata") or {}
+    metadata = user_attr(user, "user_metadata") or {}
     if isinstance(metadata, dict):
         return metadata.get("role", "user")
     return "user"
 
 
 def _user_full_name(user: Any) -> str:
-    metadata = getattr(user, "user_metadata", None) or user.get("user_metadata") or {}
-    email = getattr(user, "email", None) or user.get("email") or ""
-    if isinstance(metadata, dict):
-        return metadata.get("full_name") or email.split("@")[0]
-    return email.split("@")[0]
+    return actor_full_name(user)
+
+
+def _is_email_verified(user: Any) -> bool:
+    metadata = user_attr(user, "user_metadata") or {}
+    if isinstance(metadata, dict) and metadata.get("invited"):
+        return bool(metadata.get("email_verified"))
+    return bool(user_attr(user, "email_confirmed_at"))
+
+
+def _to_iso_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
 
 
 def _serialize_user(user: Any) -> AdminUserResponse:
+    metadata = user_attr(user, "user_metadata") or {}
+
     return AdminUserResponse(
-        id=str(getattr(user, "id", None) or user.get("id")),
-        email=str(getattr(user, "email", None) or user.get("email") or ""),
+        id=str(user_attr(user, "id")),
+        email=str(user_attr(user, "email") or ""),
         full_name=_user_full_name(user),
         role=_user_role(user),
-        created_at=getattr(user, "created_at", None) or user.get("created_at"),
-        last_sign_in_at=getattr(user, "last_sign_in_at", None) or user.get("last_sign_in_at"),
+        created_at=_to_iso_string(user_attr(user, "created_at")),
+        last_sign_in_at=_to_iso_string(user_attr(user, "last_sign_in_at")),
+        must_change_password=bool(metadata.get("must_change_password")),
+        email_verified=_is_email_verified(user),
     )
+
+
+def _generate_temporary_password() -> str:
+    return f"Tmp-{secrets.token_urlsafe(9)}!"
 
 
 def _list_all_users(client: Client) -> list[Any]:
@@ -94,7 +165,7 @@ def get_admin_stats(
     active_24h = 0
     cutoff = datetime.now(UTC).timestamp() - 24 * 60 * 60
     for user in users:
-        last_sign_in = getattr(user, "last_sign_in_at", None) or user.get("last_sign_in_at")
+        last_sign_in = user_attr(user, "last_sign_in_at")
         if not last_sign_in:
             continue
         try:
@@ -123,10 +194,193 @@ def list_admin_users(
     return [_serialize_user(user) for user in users]
 
 
+@router.post("/users/invite", response_model=InviteAdminUserResponse, status_code=status.HTTP_201_CREATED)
+def invite_admin_user(
+    payload: InviteAdminUserRequest,
+    admin=Depends(require_admin),
+    client: Client = Depends(get_admin_client),
+) -> InviteAdminUserResponse:
+    settings = get_settings()
+    temporary_password = _generate_temporary_password()
+    login_url = f"{settings.app_public_url.rstrip('/')}/login"
+
+    try:
+        created = client.auth.admin.create_user(
+            {
+                "email": payload.email,
+                "password": temporary_password,
+                "email_confirm": True,
+                "user_metadata": {
+                    "role": payload.role,
+                    "full_name": payload.full_name,
+                    "must_change_password": True,
+                    "invited": True,
+                    "email_verified": False,
+                },
+            }
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not invite user: {exc}",
+        ) from exc
+
+    user = created.user
+    user_id = user_attr(user, "id")
+    if user_id:
+        try:
+            client.table("profiles").upsert(
+                {
+                    "id": user_id,
+                    "email": payload.email,
+                    "full_name": payload.full_name,
+                    "role": payload.role,
+                }
+            ).execute()
+        except Exception:
+            pass
+
+    email_sent = send_invite_email(
+        to_email=payload.email,
+        full_name=payload.full_name,
+        temporary_password=temporary_password,
+        login_url=login_url,
+        settings=settings,
+    )
+
+    write_audit_log(
+        client,
+        actor=admin,
+        action="user.invited",
+        resource=payload.email,
+        details={"role": payload.role, "full_name": payload.full_name, "email_sent": email_sent},
+    )
+
+    if email_sent:
+        message = "Einladung wurde per E-Mail versendet."
+    elif smtp_configured(settings):
+        message = "Benutzer wurde angelegt, aber die E-Mail konnte nicht gesendet werden."
+    else:
+        message = (
+            "Benutzer wurde angelegt. SMTP ist nicht konfiguriert — "
+            "bitte Zugangsdaten manuell übermitteln."
+        )
+
+    return InviteAdminUserResponse(
+        user=_serialize_user(user),
+        email_sent=email_sent,
+        message=message,
+    )
+
+
+@router.get("/logs", response_model=PaginatedAuditLogsResponse)
+def list_audit_logs(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=AUDIT_PAGE_SIZE_DEFAULT, ge=1, le=AUDIT_PAGE_SIZE_MAX),
+    _admin=Depends(require_admin),
+    client: Client = Depends(get_admin_client),
+) -> PaginatedAuditLogsResponse:
+    offset = (page - 1) * page_size
+    end = offset + page_size - 1
+
+    try:
+        response = (
+            client.table("audit_logs")
+            .select("*", count="exact")
+            .order("created_at", desc=True)
+            .range(offset, end)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Audit logs are not available: {exc}",
+        ) from exc
+
+    rows = response.data or []
+    total = int(response.count or 0)
+    total_pages = max(1, ceil(total / page_size)) if total else 0
+
+    items = [
+        AuditLogResponse(
+            id=str(row["id"]),
+            actor_id=row.get("actor_id"),
+            actor_email=row.get("actor_email"),
+            actor_name=row.get("actor_name"),
+            action=str(row.get("action") or ""),
+            resource=row.get("resource"),
+            details=row.get("details") or {},
+            created_at=str(row.get("created_at") or ""),
+        )
+        for row in rows
+    ]
+
+    return PaginatedAuditLogsResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.post("/logs", response_model=AuditLogResponse, status_code=status.HTTP_201_CREATED)
+def create_audit_log(
+    payload: CreateAuditLogRequest,
+    user=Depends(get_current_user),
+    client: Client = Depends(get_admin_client),
+) -> AuditLogResponse:
+    role = (getattr(user, "user_metadata", None) or {}).get("role", "user")
+    if not can_record_client_action(payload.action, role=role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not allowed to record this audit event.",
+        )
+
+    try:
+        inserted = (
+            client.table("audit_logs")
+            .insert(
+                {
+                    "actor_id": user.id,
+                    "actor_email": actor_email(user),
+                    "actor_name": actor_full_name(user),
+                    "action": payload.action,
+                    "resource": payload.resource,
+                    "details": payload.details,
+                }
+            )
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Could not write audit log: {exc}",
+        ) from exc
+
+    row = (inserted.data or [None])[0]
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Audit log was not created.",
+        )
+
+    return AuditLogResponse(
+        id=str(row["id"]),
+        actor_id=row.get("actor_id"),
+        actor_email=row.get("actor_email"),
+        actor_name=row.get("actor_name"),
+        action=str(row.get("action") or ""),
+        resource=row.get("resource"),
+        details=row.get("details") or {},
+        created_at=str(row.get("created_at") or ""),
+    )
+
+
 @router.post("/users", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
 def create_admin_user(
     payload: CreateAdminUserRequest,
-    _admin=Depends(require_admin),
+    admin=Depends(require_admin),
     client: Client = Depends(get_admin_client),
 ) -> AdminUserResponse:
     try:
@@ -148,7 +402,7 @@ def create_admin_user(
         ) from exc
 
     user = created.user
-    user_id = getattr(user, "id", None) or user.get("id")
+    user_id = user_attr(user, "id")
     if user_id:
         try:
             client.table("profiles").upsert(
@@ -162,6 +416,14 @@ def create_admin_user(
         except Exception:
             pass
 
+    write_audit_log(
+        client,
+        actor=admin,
+        action="user.created",
+        resource=payload.email,
+        details={"role": payload.role, "full_name": payload.full_name},
+    )
+
     return _serialize_user(user)
 
 
@@ -169,7 +431,7 @@ def create_admin_user(
 def update_admin_user(
     user_id: str,
     payload: UpdateAdminUserRequest,
-    _admin=Depends(require_admin),
+    admin=Depends(require_admin),
     client: Client = Depends(get_admin_client),
 ) -> AdminUserResponse:
     update_data: dict[str, Any] = {}
@@ -209,12 +471,29 @@ def update_admin_user(
             client.table("profiles").upsert(
                 {
                     "id": user_id,
-                    "email": getattr(user, "email", None) or user.get("email"),
+                    "email": user_attr(user, "email"),
                     "full_name": _user_full_name(user),
                     "role": _user_role(user),
                 }
             ).execute()
         except Exception:
             pass
+
+    audit_details: dict[str, Any] = {}
+    if payload.role is not None:
+        audit_details["role"] = payload.role
+    if payload.full_name is not None:
+        audit_details["full_name"] = payload.full_name
+    if payload.password is not None:
+        audit_details["password_changed"] = True
+
+    if audit_details:
+        write_audit_log(
+            client,
+            actor=admin,
+            action="user.updated",
+            resource=actor_email(user),
+            details=audit_details,
+        )
 
     return _serialize_user(user)

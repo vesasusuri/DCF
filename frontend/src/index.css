@@ -2008,6 +2008,42 @@ body {
   line-height: 1.5;
 }
 
+.login-success {
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.auth-info-card {
+  padding: 14px 16px;
+  background: var(--color-surface-subtle);
+  margin-bottom: 16px;
+}
+
+.auth-info-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.auth-info-value {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.auth-action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .login-hint {
   margin-top: 18px;
   padding: 14px 16px;
@@ -2334,6 +2370,77 @@ body {
   font-size: 12px;
   color: var(--color-text-subtle);
   margin-top: 3px;
+}
+
+.admin-log-time {
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.admin-log-actor {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.admin-log-email {
+  font-size: 11.5px;
+  color: var(--color-text-subtle);
+  margin-top: 2px;
+}
+
+.admin-log-details {
+  color: var(--color-text-status);
+  max-width: 360px;
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-border-light);
+  background: #fbfcfd;
+}
+
+.admin-pagination-meta {
+  font-size: 12px;
+  color: var(--color-text-subtle);
+}
+
+.admin-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.admin-pagination-pages {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 90px;
+  text-align: center;
+}
+
+.admin-recent-logs {
+  margin-top: 16px;
+}
+
+.admin-recent-logs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 @media (max-width: 900px) {

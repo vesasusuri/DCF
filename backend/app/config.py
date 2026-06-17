@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     database_migration_url: str = ""
     direct_url: str = ""
 
+    app_public_url: str = "http://localhost:8080"
+
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_use_tls: bool = True
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
@@ -42,4 +51,8 @@ def get_settings() -> Settings:
     settings = Settings()
     if not settings.supabase_anon_key:
         settings.supabase_anon_key = os.getenv("VITE_SUPABASE_ANON_KEY", "")
+    if not settings.smtp_user:
+        settings.smtp_user = os.getenv("SMTP_USERNAME", "")
+    if not settings.smtp_from:
+        settings.smtp_from = os.getenv("SMTP_FROM_EMAIL", "")
     return settings
